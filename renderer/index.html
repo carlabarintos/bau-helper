@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'" />
+  <title>BauInspector</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ── Top bar ─────────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="app-logo">&#9638;</span>
+      <span class="app-name">BauInspector</span>
+    </div>
+    <div class="topbar-center">
+      <span class="login-status" id="loginStatus">Not signed in</span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-icon" id="btnLogin" title="Sign in to Azure">Sign in</button>
+      <button class="btn-icon" id="btnTheme" title="Toggle theme">&#9790;</button>
+      <button class="btn-icon" id="btnSettings" title="Settings">&#9881;</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- ── Sidebar ──────────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-collapse-btn" id="btnCollapseSidebar" title="Collapse sidebar">&#8249;</div>
+
+      <div class="sidebar-header sidebar-section">
+        <span class="sidebar-label">Workspaces</span>
+        <button class="btn-add sidebar-label" id="btnAddWorkspace" title="Add workspace">+</button>
+      </div>
+      <ul class="workspace-list" id="workspaceList"></ul>
+      <div class="sidebar-footer sidebar-section">
+        <button class="btn-secondary btn-sm sidebar-label" id="btnDiscoverWs">Discover from Azure</button>
+      </div>
+
+      <div class="sidebar-header sidebar-section" style="margin-top:4px">
+        <span class="sidebar-label">Saved Queries</span>
+      </div>
+      <ul class="workspace-list sidebar-label" id="savedQueryList"></ul>
+
+      <!-- PAT section -->
+      <div class="pat-section sidebar-section">
+        <div class="pat-header">
+          <span class="pat-icon">&#128274;</span>
+          <span class="sidebar-label pat-title">GitHub PAT</span>
+          <span class="pat-status" id="patStatus"></span>
+        </div>
+        <div class="pat-input-row sidebar-label">
+          <input type="password" id="sidebarPat" class="pat-input" placeholder="ghp_…" autocomplete="off" />
+          <button class="btn-pat-save" id="btnSavePat" title="Save token">&#10003;</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Main ─────────────────────────────────────────────────────── -->
+    <main class="main">
+      <!-- Query bar -->
+      <div class="query-bar">
+        <div class="query-input-row">
+          <textarea
+            id="kqlInput"
+            class="kql-input"
+            rows="3"
+            placeholder="Default KQL query for all workspaces…"
+            spellcheck="false"
+          ></textarea>
+          <div class="query-actions">
+            <div class="timerange-wrap">
+              <div class="timerange-presets">
+                <button class="btn-time-preset" data-h="1">1h</button>
+                <button class="btn-time-preset" data-h="6">6h</button>
+                <button class="btn-time-preset" data-h="12">12h</button>
+                <button class="btn-time-preset active" data-h="24">24h</button>
+                <button class="btn-time-preset" data-h="168">7d</button>
+                <button class="btn-time-preset" data-h="720">30d</button>
+              </div>
+              <div class="timerange-inputs">
+                <input type="datetime-local" id="timeStart" class="time-input" />
+                <span class="time-sep">&#8594;</span>
+                <input type="datetime-local" id="timeEnd" class="time-input" />
+              </div>
+            </div>
+            <button class="btn-primary" id="btnRun">&#9654; Run</button>
+            <button class="btn-ghost" id="btnSaveQuery" title="Save current query">&#128190; Save</button>
+            <button class="btn-ghost" id="btnClear">Clear</button>
+          </div>
+        </div>
+        <div class="query-meta" id="queryMeta"></div>
+        <div class="kql-limit-warn" id="kqlLimitWarn" style="display:none">
+          &#9888; Query contains <code>take</code> / <code>top</code> — all results will be fetched (limit ignored)
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs-bar">
+        <button class="tab active" data-tab="results">Results</button>
+        <button class="tab" data-tab="ai">AI Summary</button>
+        <div class="tab-spacer"></div>
+        <span class="row-count" id="rowCount"></span>
+        <div class="col-toggle-wrap" id="colToggleWrap">
+          <button class="btn-ghost btn-sm" id="btnColumns">Columns &#9663;</button>
+          <div class="col-panel" id="colPanel"></div>
+        </div>
+      </div>
+
+      <!-- Results tab -->
+      <div class="tab-content active" id="tab-results">
+        <div class="table-wrapper" id="tableWrapper">
+          <div class="empty-state" id="emptyState">
+            <div class="empty-icon">&#128269;</div>
+            <div>Select workspaces, enter a KQL query, and click Run</div>
+          </div>
+          <table class="results-table" id="resultsTable" style="display:none">
+            <thead id="resultsHead"></thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+        <div class="table-errors" id="tableErrors"></div>
+        <div class="pagination-bar" id="pagination"></div>
+      </div>
+
+      <!-- AI Summary tab -->
+      <div class="tab-content" id="tab-ai">
+        <div class="ai-layout">
+
+          <!-- Left: prompt library -->
+          <div class="ai-sidebar">
+            <div class="ai-sidebar-title">Prompt Templates</div>
+
+            <div class="prompt-group-label">Summaries</div>
+            <div class="prompt-card" data-type="summary" data-prompt="Summarize the log data. Highlight the top errors, warnings, and any unusual patterns across all workspaces.">Summarize logs</div>
+            <div class="prompt-card" data-type="summary" data-prompt="List all unique error messages, how many times each occurred, and which workspaces they came from. Sort by frequency.">Error frequency</div>
+            <div class="prompt-card" data-type="summary" data-prompt="Identify any anomalies or spikes in activity. Compare behaviour across workspaces and flag anything unusual.">Anomaly detection</div>
+
+            <div class="prompt-group-label">Diagrams</div>
+            <div class="prompt-card" data-type="diagram" data-prompt="Create a Mermaid pie chart showing the distribution of log severity levels (error, warning, info, verbose) from the data. Return only the mermaid code block.">Severity pie chart</div>
+            <div class="prompt-card" data-type="diagram" data-prompt="Create a Mermaid bar chart (xychart-beta) showing the count of events per workspace. Return only the mermaid code block.">Events per workspace</div>
+            <div class="prompt-card" data-type="diagram" data-prompt="Create a Mermaid timeline showing the key events in chronological order. Return only the mermaid code block.">Event timeline</div>
+            <div class="prompt-card" data-type="diagram" data-prompt="Create a Mermaid flowchart showing the flow of requests visible in the logs, including failure paths. Return only the mermaid code block.">Request flow</div>
+
+            <div class="prompt-group-label">Dashboards</div>
+            <div class="prompt-card" data-type="dashboard" data-prompt="health">Health dashboard</div>
+            <div class="prompt-card" data-type="dashboard" data-prompt="performance">Performance report</div>
+            <div class="prompt-card" data-type="dashboard" data-prompt="errors">Error breakdown</div>
+            <div class="prompt-card" data-type="dashboard" data-prompt="security">Security overview</div>
+
+            <div class="prompt-group-label">Investigation</div>
+            <div class="prompt-card" data-type="summary" data-prompt="Trace the root cause of the most frequent error. Show the chain of events leading up to it.">Root cause trace</div>
+            <div class="prompt-card" data-type="summary" data-prompt="Are there any security-relevant events in these logs? List suspicious patterns, authentication failures, or unusual access.">Security scan</div>
+          </div>
+
+          <!-- Right: input + output -->
+          <div class="ai-panel">
+            <div class="ai-prompt-row">
+              <input
+                type="text"
+                id="aiPrompt"
+                class="ai-input"
+                placeholder="Ask about the logs, or click a template on the left…"
+              />
+              <button class="btn-primary" id="btnSummarize">Ask AI</button>
+              <button class="btn-ghost" id="btnSummarizeAll" title="Include all rows (slower for large results)">All rows</button>
+              <button class="btn-ghost" id="btnSaveImage" title="Save summary as image" style="display:none" disabled>&#128247; Save image</button>
+              <select id="modelSelect" class="model-select" title="AI model">
+                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                <option value="gpt-4o">gpt-4o</option>
+                <option value="Phi-4">Phi-4</option>
+                <option value="Mistral-large">Mistral Large</option>
+                <option value="o1-mini">o1-mini</option>
+                <option value="o3-mini">o3-mini</option>
+              </select>
+            </div>
+            <div class="ai-result" id="aiResult">
+              <div class="empty-state">
+                <div class="empty-icon">&#129302;</div>
+                <div>Run a query, then pick a template or type a question</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ── Modals ────────────────────────────────────────────────────────── -->
+
+  <!-- Add Workspace modal -->
+  <div class="modal-backdrop" id="modalAddWorkspace">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Add Workspace</span>
+        <button class="btn-close" data-close="modalAddWorkspace">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label>Display Name</label>
+        <input type="text" id="wsName" class="input-field" placeholder="e.g. Prod EU West" />
+        <label>Workspace ID <span class="label-hint">(GUID from Azure Portal)</span></label>
+        <input type="text" id="wsId" class="input-field" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+        <label>Subscription ID <span class="label-hint">(optional)</span></label>
+        <input type="text" id="wsSubId" class="input-field" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+        <label>Color</label>
+        <div class="color-picker" id="wsColorPicker"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" data-close="modalAddWorkspace">Cancel</button>
+        <button class="btn-primary" id="btnSaveWorkspace">Add Workspace</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Discover Workspaces modal -->
+  <div class="modal-backdrop" id="modalDiscover">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Discover Workspaces</span>
+        <button class="btn-close" data-close="modalDiscover">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label>Subscription <span class="label-hint">(leave blank for all accessible)</span></label>
+        <select id="discoverSubSelect" class="input-field">
+          <option value="">Loading…</option>
+        </select>
+        <div id="discoverResults" style="margin-top:12px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" data-close="modalDiscover">Close</button>
+        <button class="btn-primary" id="btnDiscoverFetch">Discover</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal-backdrop" id="modalSettings">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <span>Settings</span>
+        <button class="btn-close" data-close="modalSettings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-section">
+          <div class="settings-section-title">GitHub Copilot / Models API</div>
+          <label>
+            GitHub Personal Access Token
+            <span class="label-hint"> — needs <code>models:read</code> scope (or Copilot subscription)</span>
+          </label>
+          <input type="password" id="settingsToken" class="input-field" placeholder="ghp_…" />
+          <label>Model</label>
+          <select id="settingsModel" class="input-field">
+            <option value="gpt-4o-mini">gpt-4o-mini (fast, recommended)</option>
+            <option value="gpt-4o">gpt-4o (more capable)</option>
+            <option value="Phi-4">Phi-4 (Microsoft, free tier)</option>
+            <option value="Mistral-large">Mistral Large</option>
+          </select>
+          <div class="settings-hint">
+            Get a token at <strong>github.com &rarr; Settings &rarr; Developer settings &rarr; Personal access tokens</strong>.
+            GitHub Models is free for Copilot subscribers and has a free tier for others.
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title">Azure CLI</div>
+          <label>Custom <code>az</code> binary path <span class="label-hint">(leave blank for PATH)</span></label>
+          <input type="text" id="settingsAzPath" class="input-field" placeholder="C:\Program Files\…\az.cmd" />
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title">Config file location</div>
+          <div class="config-path" id="configPath"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" data-close="modalSettings">Cancel</button>
+        <button class="btn-primary" id="btnSaveSettings">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save Query modal -->
+  <div class="modal-backdrop" id="modalSaveQuery">
+    <div class="modal">
+      <div class="modal-header">
+        <span>Save Query</span>
+        <button class="btn-close" data-close="modalSaveQuery">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label>Query Name</label>
+        <input type="text" id="saveQueryName" class="input-field" placeholder="e.g. Recent errors last 24h" />
+        <label style="margin-top:8px">Preview</label>
+        <div id="saveQueryPreview" class="query-preview"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" data-close="modalSaveQuery">Cancel</button>
+        <button class="btn-primary" id="btnConfirmSaveQuery">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workspace KQL modal -->
+  <div class="modal-backdrop" id="modalWsKql">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <span>Custom Query &mdash; <span id="wsKqlTitle"></span></span>
+        <button class="btn-close" data-close="modalWsKql">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label>KQL Query <span class="label-hint">(leave blank to use the default query)</span></label>
+        <textarea id="wsKqlInput" class="kql-input" rows="6" spellcheck="false" style="margin-top:6px"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" id="btnClearWsKql">Clear (use default)</button>
+        <button class="btn-ghost" data-close="modalWsKql">Cancel</button>
+        <button class="btn-primary" id="btnSaveWsKql">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div id="loadingMsg">Running query…</div>
+  </div>
+
+  <script src="vendor/html2canvas.min.js"></script>
+  <script src="vendor/mermaid.min.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

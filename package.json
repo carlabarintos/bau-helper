@@ -1,0 +1,45 @@
+{
+  "name": "bau-inspector",
+  "version": "1.0.0",
+  "description": "Azure Workspace Log Inspector with GitHub Copilot AI Summaries",
+  "author": "BauInspector",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --dir",
+    "build:installer": "electron-builder --win"
+  },
+  "dependencies": {
+    "html2canvas": "^1.4.1",
+    "mermaid": "^11.14.0"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.bauinspector.app",
+    "productName": "BauInspector",
+    "copyright": "Copyright © 2025",
+    "asar": true,
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BauInspector"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "!renderer/vendor/.gitkeep"
+    ],
+    "extraMetadata": {
+      "main": "main.js"
+    }
+  }
+}
