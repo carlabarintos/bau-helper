@@ -413,6 +413,29 @@ ipcMain.handle('image:save', async (_e, { dataUrl, suggestedName }) => {
   return { ok: true, filePath };
 });
 
+// ─── Update check ────────────────────────────────────────────────────────────
+
+function checkForUpdates(win) {
+  const current = app.getVersion();
+  const options = {
+    hostname: 'api.github.com',
+    path: '/repos/carlabarintos/bau-helper/releases/latest',
+    headers: { 'User-Agent': 'BauInspector' },
+  };
+  https.get(options, (res) => {
+    let data = '';
+    res.on('data', c => { data += c; });
+    res.on('end', () => {
+      try {
+        const latest = JSON.parse(data).tag_name?.replace(/^v/, '');
+        if (latest && latest !== current) {
+          win.webContents.send('update-available', { current, latest });
+        }
+      } catch { /* ignore parse errors */ }
+    });
+  }).on('error', () => { /* no network, skip silently */ });
+}
+
 // ─── Window ──────────────────────────────────────────────────────────────────
 
 function createWindow() {
@@ -432,7 +455,10 @@ function createWindow() {
   });
 
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    win.show();
+    setTimeout(() => checkForUpdates(win), 3000); // check after UI settles
+  });
 
   // Open external links in browser
   win.webContents.setWindowOpenHandler(({ url }) => {

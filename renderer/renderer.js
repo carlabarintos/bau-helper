@@ -113,6 +113,23 @@ function applyPreset(hours) {
   updateModelBadge();
   applyTheme(config.settings.theme);
 
+  // Update notification
+  window.addEventListener('bau-update-available', ({ detail }) => {
+    const banner = document.getElementById('updateBanner');
+    document.getElementById('updateMsg').textContent =
+      `BauInspector v${detail.latest} is available (you have v${detail.current}).`;
+    document.getElementById('updateLink').href =
+      'https://github.com/carlabarintos/bau-helper/releases/latest';
+    document.getElementById('updateLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      window.open('https://github.com/carlabarintos/bau-helper/releases/latest');
+    });
+    document.getElementById('updateDismiss').addEventListener('click', () => {
+      banner.style.display = 'none';
+    });
+    banner.style.display = 'flex';
+  });
+
   const cfgPath = await api.config.getPath();
   document.getElementById('configPath').textContent = cfgPath;
 })();
@@ -672,11 +689,11 @@ function getSeverity(row) {
       const norm = String(val).toLowerCase().trim();
       if (SEV_MAP[norm]) return SEV_MAP[norm];
       // numeric Azure severity: 0=critical,1=error,2=warning,3=info,4=verbose
-      if (norm === '0') return { cls: 'sev-error',   label: 'CRIT' };
-      if (norm === '1') return { cls: 'sev-error',   label: 'ERR'  };
+      if (norm === '0') return { cls: 'sev-verbose', label: 'VERB' };
+      if (norm === '1') return { cls: 'sev-info',    label: 'INFO' };
       if (norm === '2') return { cls: 'sev-warning', label: 'WARN' };
-      if (norm === '3') return { cls: 'sev-info',    label: 'INFO' };
-      if (norm === '4') return { cls: 'sev-verbose', label: 'VERB' };
+      if (norm === '3') return { cls: 'sev-error',   label: 'ERR'  };
+      if (norm === '4') return { cls: 'sev-error',   label: 'CRIT' };
     }
   }
   return null;

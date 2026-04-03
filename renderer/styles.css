@@ -1191,6 +1191,43 @@ body.day .time-input::-webkit-calendar-picker-indicator { filter: invert(0.3); }
   padding: 4px 0;
 }
 
+/* ─── Update banner ─────────────────────────────────────────────────────── */
+.update-banner {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 300;
+  background: var(--bg3);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text);
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  max-width: 420px;
+}
+.update-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.update-link:hover { text-decoration: underline; }
+.update-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  margin-left: 2px;
+}
+.update-dismiss:hover { color: var(--text); }
+
 /* ─── KQL limit warning ──────────────────────────────────────────────────── */
 .kql-limit-warn {
   font-size: 12px;

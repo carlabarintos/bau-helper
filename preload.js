@@ -1,5 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Forward update-available event to renderer
+ipcRenderer.on('update-available', (_e, info) => {
+  window.dispatchEvent(new CustomEvent('bau-update-available', { detail: info }));
+});
+
 contextBridge.exposeInMainWorld('api', {
   az: {
     checkLogin:       ()         => ipcRenderer.invoke('az:checkLogin'),
